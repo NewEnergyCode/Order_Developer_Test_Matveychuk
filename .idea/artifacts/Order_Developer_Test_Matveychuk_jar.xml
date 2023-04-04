@@ -1,0 +1,10 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="Order_Developer_Test_Matveychuk:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/Order_Developer_Test_Matveychuk_jar</output-path>
+    <root id="archive" name="Order_Developer_Test_Matveychuk.jar">
+      <element id="module-output" name="Order_Developer_Test_Matveychuk" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/apache/commons/commons-lang3/3.11/commons-lang3-3.11.jar" path-in-jar="/" />
+      <element id="dir-copy" path="$PROJECT_DIR$/src" />
+    </root>
+  </artifact>
+</component>
