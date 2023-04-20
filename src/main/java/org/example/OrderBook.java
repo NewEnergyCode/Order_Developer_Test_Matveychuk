@@ -6,10 +6,11 @@ import java.util.*;
 public class OrderBook {
 
     private final Map<Integer, String> cl = new HashMap<>();
+
     private final ArrayList<Product> productList = new ArrayList<>();
     private BufferedWriter writer = new BufferedWriter(new FileWriter(System.getProperty("user.dir") + File.separator + "output.txt"));
-    private FileWriter file;
-    private boolean lastCommand;
+
+//    private boolean lastCommand;
 
     public OrderBook() throws IOException {
     }
@@ -39,6 +40,12 @@ public class OrderBook {
         if (productList.isEmpty()) {
             return null;
         } else {
+            Product spread = productList.stream()
+                    .filter(product -> product.getPrice().equals(price))
+                    .findAny().orElse(null);
+            if (spread == null) {
+                productList.add(new Product(price, 0, "spread"));
+            }
             return productList.stream().filter(product -> product.getPrice().equals(price))
                     .findAny().orElse(null);
         }
@@ -46,16 +53,16 @@ public class OrderBook {
 
     public void commandExecution() throws IOException {
         int last = 0;
-        for (Map.Entry<Integer, String> entry : cl.entrySet()) {
-            String[] words = cl.get(entry.getKey()).split(",");
-            if (words[0].equals("q"))
-                last = entry.getKey();
-        }
+//        for (Map.Entry<Integer, String> entry : cl.entrySet()) {
+//            String[] words = cl.get(entry.getKey()).split(",");
+//            if (words[0].equals("q"))
+//                last = entry.getKey();
+//        }
         for (int i = 1; i < cl.size() + 1; i++) {
             String[] words = cl.get(i).split(",");
-            if (i == (last)) {
-                lastCommand = true;
-            }
+//            if (i == (last)) {
+//                lastCommand = true;
+//            }
             switch (words[0]) {
                 case "u" -> {
                     if ((Integer.parseInt(words[1]) > Math.pow(10, 9)) | (Integer.parseInt(words[2]) > Math.pow(10, 8))
@@ -110,8 +117,9 @@ public class OrderBook {
 
                 int count = 0;
                 for (Product i : productList) {
-                    if (i.getPrice().equals(product.getPrice()) && i.getType().equals(product.type)) {
+                    if (i.getPrice().equals(product.getPrice())) {
                         productList.get(productList.indexOf(i)).setSize(product.getSize());
+                        productList.get(productList.indexOf(i)).setType(product.getType());
                         break;
                     } else if ((product.getPrice() >= bestAsk)) {
                         System.out.println("Incorrect input file. Bid >= Ask. Try again.");
@@ -132,8 +140,9 @@ public class OrderBook {
             case "ask" -> {
                 int count = 0;
                 for (Product i : productList) {
-                    if (i.getPrice().equals(product.getPrice()) && i.getType().equals(product.getType())) {
+                    if (i.getPrice().equals(product.getPrice())) {
                         productList.get(productList.indexOf(i)).setSize(product.getSize());
+                        productList.get(productList.indexOf(i)).setType(product.getType());
                         break;
                     } else if ((product.getPrice() <= bestBid)) {
                         System.out.println("Incorrect input file. Ask <= Bid. Try again.");
@@ -174,49 +183,103 @@ public class OrderBook {
 
     public void writeOutputFile(Product product, String command) throws IOException {
         if (product == null) {
+            writer.write("0");
+//            if (!lastCommand) {
+                writer.write("\n");
+//            }
             writer.flush();
         } else if (command.equals("best_bid") | command.equals("best_ask")) {
             writer.write(product.getPrice() + "," + product.getSize());
-            if (!lastCommand) {
+//            if (!lastCommand) {
                 writer.write("\n");
-            }
+//            }
             writer.flush();
         } else if (command.equals("size")) {
             writer.write(product.getSize().toString());
-            if (!lastCommand) {
+//            if (!lastCommand) {
                 writer.write("\n");
-            }
+//            }
             writer.flush();
         }
     }
 
     public void remove(String input, Integer size) {
+        Integer bigSize = size;
         String type;
         if (input.equals("sell")) {
             type = "bid";
-            Product rem = productList.stream().filter(product -> product.getType().equals(type))
+            Product firstRem = getBestBid();
+            Product secondRem;
+            secondRem = productList.stream()
+                    .filter(product -> product.getType().equals(type))
                     .filter(product -> product.getSize() != 0)
-                    .max(Comparator.comparingInt(Product::getPrice)).get();
-            if ((rem.getSize() - size) < 0) {
-                System.out.println("Applications are over. Sorry.");
+                    .filter(product -> product.getSize() != firstRem.getSize())
+                    .max(Comparator.comparingInt(Product::getPrice))
+                    .orElse(null);
+            if (((firstRem.getSize() - size) < 0 && secondRem == null) && sumAllProductSize(type) < (size)) {
+                System.out.println("Applications are over. Sorry. Bid is very big");
+            } else if ((firstRem.getSize() - size) < 0) {
+                while (bigSize > 0) {
+                    if (bigSize > getBestBid().getSize()) {
+                        bigSize = bigSize - getBestBid().getSize();
+                        productList.stream().filter(product -> product.getType().equals(type))
+                                .filter(product -> product.getSize() != 0)
+                                .max(Comparator.comparingInt(Product::getPrice)).get().setSize(0);
+                    } else {
+                        productList.stream().filter(product -> product.getType().equals(type))
+                                .filter(product -> product.getSize() != 0)
+                                .max(Comparator.comparingInt(Product::getPrice)).get().setSize(getBestBid().getSize() - bigSize);
+                        bigSize = 0;
+                    }
+                }
             } else {
-                productList.stream().filter(product -> product.getType().equals(type))
+                productList.stream()
+                        .filter(product -> product.getType().equals(type))
                         .filter(product -> product.getSize() != 0)
-                        .max(Comparator.comparingInt(Product::getPrice)).get().setSize(rem.getSize() - size);
+                        .max(Comparator.comparingInt(Product::getPrice)).get().setSize(firstRem.getSize() - size);
             }
         } else if (input.equals("buy")) {
             type = "ask";
-            Product rem = productList.stream().filter(product -> product.getType().equals(type))
+            Product firstRem = getBestAsk();
+            Product secondRem;
+            secondRem = productList.stream()
+                    .filter(product -> product.getType().equals(type))
                     .filter(product -> product.getSize() != 0)
-                    .min(Comparator.comparingInt(Product::getPrice)).get();
-            if ((rem.getSize() - size) < 0) {
-                System.out.println("Applications are over. Sorry.");
+                    .filter(product -> product.getSize() != firstRem.getSize())
+                    .min(Comparator.comparingInt(Product::getPrice))
+                    .orElse(null);
+
+            if (((firstRem.getSize() - size) < 0 && secondRem == null) && sumAllProductSize(type) < size) {
+                System.out.println("Applications are over. Sorry. Ask is very big");
+            } else if ((firstRem.getSize() - size) < 0) {
+                while (bigSize > 0) {
+                    if (bigSize > getBestAsk().getSize()) {
+                        bigSize = bigSize - getBestAsk().getSize();
+                        productList.stream()
+                                .filter(product -> product.getType().equals(type))
+                                .filter(product -> product.getSize() != 0)
+                                .min(Comparator.comparingInt(Product::getPrice)).get().setSize(0);
+                    } else {
+                        productList.stream()
+                                .filter(product -> product.getType().equals(type))
+                                .filter(product -> product.getSize() != 0)
+                                .min(Comparator.comparingInt(Product::getPrice)).get().setSize(getBestAsk().getSize() - bigSize);
+                        bigSize = 0;
+                    }
+                }
             } else {
-                productList.stream().filter(product -> product.getType().equals(type))
+                productList.stream()
+                        .filter(product -> product.getType().equals(type))
                         .filter(product -> product.getSize() != 0)
-                        .min(Comparator.comparingInt(Product::getPrice)).get().setSize(rem.getSize() - size);
+                        .min(Comparator.comparingInt(Product::getPrice)).get().setSize(firstRem.getSize() - size);
             }
         }
+    }
+
+    public int sumAllProductSize(String type) {
+        return productList.stream().filter(product -> product.getType().equals(type))
+                .filter(product -> product.getSize() != 0)
+                .mapToInt(Product::getSize).sum();
     }
 
 }
