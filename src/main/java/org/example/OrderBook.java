@@ -5,77 +5,56 @@ import java.util.*;
 
 public class OrderBook {
 
-    private final Map<Integer, String> cl = new HashMap<>();
 
     private final ArrayList<Product> productList = new ArrayList<>();
-    private BufferedWriter writer = new BufferedWriter(new FileWriter(System.getProperty("user.dir") + File.separator + "output.txt"));
-
-//    private boolean lastCommand;
+    private final FileWriter outFile = new FileWriter(System.getProperty("user.dir") + File.separator + "output.txt");
 
     public OrderBook() throws IOException {
     }
 
     public Product getBestAsk() {
-        if (productList.isEmpty()) {
-            return null;
-        } else {
-            return productList.stream().filter(product -> product.getType().equals("ask"))
-                    .filter(product -> product.getSize() != 0)
-                    .min(Comparator.comparingInt(Product::getPrice)).orElse(null);
+        Product bestAsk = null;
+        for (Product product : productList) {
+            if (product.getType().equals("ask") && product.getSize() != 0) {
+                if (bestAsk == null) {
+                    bestAsk = product;
+                }
+                for (Product value : productList) {
+                    if (value.getType().equals("ask") && value.getSize() != 0) {
+                        if (product.getPrice() < value.getPrice()) {
+                            bestAsk = product;
+                        }
+                    }
+                }
+            }
         }
-
+        return bestAsk;
     }
 
+
     public Product getBestBid() {
-        if (productList.isEmpty()) {
-            return null;
-        } else {
-            return productList.stream().filter(product -> product.getType().equals("bid"))
-                    .filter(product -> product.getSize() != 0)
-                    .max(Comparator.comparingInt(Product::getPrice)).orElse(null);
-        }
+        return productList.stream()
+                .filter(product -> product.getType().equals("bid"))
+                .filter(product -> product.getSize() != 0)
+                .max(Comparator.comparingInt(Product::getPrice)).orElse(null);
     }
 
     public Product getProductSize(Integer price) {
-        if (productList.isEmpty()) {
-            return null;
-        } else {
-            Product spread = productList.stream()
-                    .filter(product -> product.getPrice().equals(price))
-                    .findAny().orElse(null);
-            if (spread == null) {
-                productList.add(new Product(price, 0, "spread"));
-            }
-            return productList.stream().filter(product -> product.getPrice().equals(price))
-                    .findAny().orElse(null);
-        }
+        return productList.stream()
+                .filter(product -> product.getPrice().equals(price))
+                .findAny().orElse(null);
     }
 
-    public void commandExecution() throws IOException {
-        int last = 0;
-//        for (Map.Entry<Integer, String> entry : cl.entrySet()) {
-//            String[] words = cl.get(entry.getKey()).split(",");
-//            if (words[0].equals("q"))
-//                last = entry.getKey();
-//        }
-        for (int i = 1; i < cl.size() + 1; i++) {
+    public void commandExecution(ArrayList<String> cl) throws IOException {
+        for (int i = 0; i < cl.size(); i++) {
             String[] words = cl.get(i).split(",");
-//            if (i == (last)) {
-//                lastCommand = true;
-//            }
             switch (words[0]) {
                 case "u" -> {
-                    if ((Integer.parseInt(words[1]) > Math.pow(10, 9)) | (Integer.parseInt(words[2]) > Math.pow(10, 8))
-                            | (Integer.parseInt(words[2]) < 0) | (Integer.parseInt(words[1]) < 1)) {
-                        System.out.println("Incorrect input file. " + words[1] + " < 1. Unlimited. Try again.");
-                        continue;
+                    if (productList.isEmpty()) {
+                        productList.add(new Product(Integer.valueOf(words[1]), Integer.valueOf(words[2]), words[3]));
+                        updateOrdersBook(new Product(Integer.valueOf(words[1]), Integer.valueOf(words[2]), words[3]));
                     } else {
-                        if (productList.isEmpty()) {
-                            productList.add(new Product(Integer.valueOf(words[1]), Integer.valueOf(words[2]), words[3]));
-                            updateOrdersBook(new Product(Integer.valueOf(words[1]), Integer.valueOf(words[2]), words[3]));
-                        } else {
-                            updateOrdersBook(new Product(Integer.valueOf(words[1]), Integer.valueOf(words[2]), words[3]));
-                        }
+                        updateOrdersBook(new Product(Integer.valueOf(words[1]), Integer.valueOf(words[2]), words[3]));
                     }
                 }
                 case "q" -> {
@@ -88,10 +67,10 @@ public class OrderBook {
                 }
                 case "o" -> {
                     if (words[1].equals("buy")) {
-                        remove(words[1], Integer.valueOf(words[2]));
+                        removeOrder(words[1], Integer.valueOf(words[2]));
                     }
                     if (words[1].equals("sell")) {
-                        remove(words[1], Integer.valueOf(words[2]));
+                        removeOrder(words[1], Integer.valueOf(words[2]));
                     }
                 }
             }
@@ -99,187 +78,93 @@ public class OrderBook {
     }
 
     public void updateOrdersBook(Product product) {
-        Integer bestAsk = 0;
-        if (getBestAsk() == null) {
-            bestAsk = Integer.valueOf((int) Math.pow(10, 9));
-        } else {
-            bestAsk = getBestAsk().getPrice();
+        int count = 0;
+        for (Product i : productList) {
+            if (i.getPrice().equals(product.getPrice())) {
+                productList.get(productList.indexOf(i)).setSize(product.getSize());
+                productList.get(productList.indexOf(i)).setType(product.getType());
+                break;
+            } else {
+                count++;
+            }
         }
-        Integer bestBid = 0;
-        if (getBestBid() == null) {
-            bestBid = 0;
-        } else {
-            bestBid = getBestBid().getPrice();
-        }
-
-        switch (product.getType()) {
-            case "bid" -> {
-
-                int count = 0;
-                for (Product i : productList) {
-                    if (i.getPrice().equals(product.getPrice())) {
-                        productList.get(productList.indexOf(i)).setSize(product.getSize());
-                        productList.get(productList.indexOf(i)).setType(product.getType());
-                        break;
-                    } else if ((product.getPrice() >= bestAsk)) {
-                        System.out.println("Incorrect input file. Bid >= Ask. Try again.");
-                        break;
-                    } else if ((product.getPrice() > Math.pow(10, 9)) | (product.getSize() > Math.pow(10, 8))
-                            | (product.getSize() < 0) | (product.getPrice() < 1)) {
-                        System.out.println("Incorrect input file. Unlimited. Try again.");
-                        break;
-                    } else {
-                        count++;
-                    }
-                }
-                if (count == productList.size()) {
-                    productList.add(product);
-                }
-
-            }
-            case "ask" -> {
-                int count = 0;
-                for (Product i : productList) {
-                    if (i.getPrice().equals(product.getPrice())) {
-                        productList.get(productList.indexOf(i)).setSize(product.getSize());
-                        productList.get(productList.indexOf(i)).setType(product.getType());
-                        break;
-                    } else if ((product.getPrice() <= bestBid)) {
-                        System.out.println("Incorrect input file. Ask <= Bid. Try again.");
-                        break;
-                    } else if ((product.getPrice() > Math.pow(10, 9)) | (product.getSize() > Math.pow(10, 8))
-                            | (product.getSize() < 0) | (product.getPrice() < 1)) {
-                        System.out.println("Incorrect input file. Unlimited. Try again.");
-                        break;
-                    } else {
-                        count++;
-                    }
-                }
-                if (count == productList.size()) {
-                    productList.add(product);
-                }
-            }
-
-            default -> {
-                productList.add(product);
-            }
+        if (count == productList.size()) {
+            productList.add(product);
         }
     }
 
 
-    public void readInputFile(File input) throws FileNotFoundException {
-        cl.clear();
-        Integer key = 0;
+    public ArrayList<String> readInputFile() throws IOException {
+        ArrayList<String> cl = new ArrayList<>();
+        File input = new File(System.getProperty("user.dir") + File.separator + "input.txt");
         String line;
-        try (BufferedReader br = new BufferedReader(new FileReader(input))) {
-            while ((line = br.readLine()) != null) {
-                key++;
-                cl.put(key, line);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
+        BufferedReader br = new BufferedReader(new FileReader(input));
+        while ((line = br.readLine()) != null) {
+            cl.add(line);
         }
+        br.close();
+        return cl;
     }
 
-    public void writeOutputFile(Product product, String command) throws IOException {
+    public void writeOutputFile(Product product, String command) {
+        PrintWriter writer = new PrintWriter(outFile);
         if (product == null) {
-            writer.write("0");
-//            if (!lastCommand) {
-                writer.write("\n");
-//            }
-            writer.flush();
+            writer.write("0" + "\n");
         } else if (command.equals("best_bid") | command.equals("best_ask")) {
-            writer.write(product.getPrice() + "," + product.getSize());
-//            if (!lastCommand) {
-                writer.write("\n");
-//            }
-            writer.flush();
+            writer.write(product.getPrice() + "," + product.getSize() + "\n");
         } else if (command.equals("size")) {
-            writer.write(product.getSize().toString());
-//            if (!lastCommand) {
-                writer.write("\n");
-//            }
-            writer.flush();
+            writer.write(product.getSize().toString() + "\n");
         }
+        writer.flush();
     }
 
-    public void remove(String input, Integer size) {
-        Integer bigSize = size;
-        String type;
+    public void removeOrder(String input, Integer size) {
         if (input.equals("sell")) {
-            type = "bid";
+            Integer bigSize = size;
             Product firstRem = getBestBid();
-            Product secondRem;
-            secondRem = productList.stream()
-                    .filter(product -> product.getType().equals(type))
-                    .filter(product -> product.getSize() != 0)
-                    .filter(product -> product.getSize() != firstRem.getSize())
-                    .max(Comparator.comparingInt(Product::getPrice))
-                    .orElse(null);
-            if (((firstRem.getSize() - size) < 0 && secondRem == null) && sumAllProductSize(type) < (size)) {
-                System.out.println("Applications are over. Sorry. Bid is very big");
-            } else if ((firstRem.getSize() - size) < 0) {
+            if ((firstRem.getSize() - size) < 0) {
                 while (bigSize > 0) {
                     if (bigSize > getBestBid().getSize()) {
                         bigSize = bigSize - getBestBid().getSize();
-                        productList.stream().filter(product -> product.getType().equals(type))
-                                .filter(product -> product.getSize() != 0)
-                                .max(Comparator.comparingInt(Product::getPrice)).get().setSize(0);
+                        removeBid("bid", 0);
                     } else {
-                        productList.stream().filter(product -> product.getType().equals(type))
-                                .filter(product -> product.getSize() != 0)
-                                .max(Comparator.comparingInt(Product::getPrice)).get().setSize(getBestBid().getSize() - bigSize);
+                        removeBid("bid", getBestBid().getSize() - bigSize);
                         bigSize = 0;
                     }
                 }
             } else {
-                productList.stream()
-                        .filter(product -> product.getType().equals(type))
-                        .filter(product -> product.getSize() != 0)
-                        .max(Comparator.comparingInt(Product::getPrice)).get().setSize(firstRem.getSize() - size);
+                removeBid("bid", firstRem.getSize() - size);
             }
         } else if (input.equals("buy")) {
-            type = "ask";
+            Integer bigSize = size;
             Product firstRem = getBestAsk();
-            Product secondRem;
-            secondRem = productList.stream()
-                    .filter(product -> product.getType().equals(type))
-                    .filter(product -> product.getSize() != 0)
-                    .filter(product -> product.getSize() != firstRem.getSize())
-                    .min(Comparator.comparingInt(Product::getPrice))
-                    .orElse(null);
-
-            if (((firstRem.getSize() - size) < 0 && secondRem == null) && sumAllProductSize(type) < size) {
-                System.out.println("Applications are over. Sorry. Ask is very big");
-            } else if ((firstRem.getSize() - size) < 0) {
+            if ((firstRem.getSize() - size) < 0) {
                 while (bigSize > 0) {
                     if (bigSize > getBestAsk().getSize()) {
                         bigSize = bigSize - getBestAsk().getSize();
-                        productList.stream()
-                                .filter(product -> product.getType().equals(type))
-                                .filter(product -> product.getSize() != 0)
-                                .min(Comparator.comparingInt(Product::getPrice)).get().setSize(0);
+                        removeAsk("ask", 0);
                     } else {
-                        productList.stream()
-                                .filter(product -> product.getType().equals(type))
-                                .filter(product -> product.getSize() != 0)
-                                .min(Comparator.comparingInt(Product::getPrice)).get().setSize(getBestAsk().getSize() - bigSize);
+                        removeAsk("ask", getBestAsk().getSize() - bigSize);
                         bigSize = 0;
                     }
                 }
             } else {
-                productList.stream()
-                        .filter(product -> product.getType().equals(type))
-                        .filter(product -> product.getSize() != 0)
-                        .min(Comparator.comparingInt(Product::getPrice)).get().setSize(firstRem.getSize() - size);
+                removeAsk("ask", firstRem.getSize() - size);
             }
         }
     }
 
-    public int sumAllProductSize(String type) {
-        return productList.stream().filter(product -> product.getType().equals(type))
+    public void removeBid(String type, Integer size) {
+        productList.stream()
+                .filter(product -> product.getType().equals(type))
                 .filter(product -> product.getSize() != 0)
-                .mapToInt(Product::getSize).sum();
+                .max(Comparator.comparingInt(Product::getPrice)).get().setSize(size);
     }
 
+    public void removeAsk(String type, Integer size) {
+        productList.stream()
+                .filter(product -> product.getType().equals(type))
+                .filter(product -> product.getSize() != 0)
+                .min(Comparator.comparingInt(Product::getPrice)).get().setSize(size);
+    }
 }
