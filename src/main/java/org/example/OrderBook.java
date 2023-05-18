@@ -5,84 +5,93 @@ import java.util.*;
 
 public class OrderBook {
 
-
     private final ArrayList<Product> productList = new ArrayList<>();
-    private final FileWriter outFile = new FileWriter(System.getProperty("user.dir") + File.separator + "output.txt");
-
-    public OrderBook() throws IOException {
-    }
+    private final LinkedList<String> writeList = new LinkedList<>();
+    private Product product;
+    private int bigSize;
+    private int firstRem;
 
     public Product getBestAsk() {
-        Product bestAsk = null;
-        for (Product product : productList) {
+        int bestAsk = -1;
+        for (int i = 0; i < productList.size(); i++) {
+            product = productList.get(i);
             if (product.getType().equals("ask") && product.getSize() != 0) {
-                if (bestAsk == null) {
-                    bestAsk = product;
+                if (bestAsk == -1) {
+                    bestAsk = i;
                 }
-                for (Product value : productList) {
-                    if (value.getType().equals("ask") && value.getSize() != 0) {
-                        if (product.getPrice() < value.getPrice()) {
-                            bestAsk = product;
-                        }
-                    }
+                if (productList.get(bestAsk).getPrice() > product.getPrice()) {
+                    bestAsk = i;
                 }
             }
         }
-        return bestAsk;
+        return productList.get(bestAsk);
     }
 
 
     public Product getBestBid() {
-        return productList.stream()
-                .filter(product -> product.getType().equals("bid"))
-                .filter(product -> product.getSize() != 0)
-                .max(Comparator.comparingInt(Product::getPrice)).orElse(null);
+        int bestBid = -1;
+        for (int i = 0; i < productList.size(); i++) {
+            Product product = productList.get(i);
+            if (product.getType().equals("bid") && product.getSize() != 0) {
+                if (bestBid == -1) {
+                    bestBid = i;
+                }
+                if (product.getPrice() > productList.get(bestBid).getPrice()) {
+                    bestBid = i;
+                }
+            }
+        }
+        return productList.get(bestBid);
     }
 
-    public Product getProductSize(Integer price) {
-        return productList.stream()
-                .filter(product -> product.getPrice().equals(price))
-                .findAny().orElse(null);
+    public Product getProductSize(int price) {
+        for (int i = 0; i < productList.size(); i++) {
+            if (productList.get(i).getPrice() == price) {
+                return productList.get(i);
+            }
+        }
+        return null;
     }
 
-    public void commandExecution(ArrayList<String> cl) throws IOException {
+    public void commandExecution(ArrayList<String> cl) {
         for (int i = 0; i < cl.size(); i++) {
             String[] words = cl.get(i).split(",");
             switch (words[0]) {
                 case "u" -> {
+                    int word1 = Integer.parseInt(words[1]);
+                    int word2 = Integer.parseInt(words[2]);
+                    product = new Product(word1, word2, words[3]);
                     if (productList.isEmpty()) {
-                        productList.add(new Product(Integer.valueOf(words[1]), Integer.valueOf(words[2]), words[3]));
-                        updateOrdersBook(new Product(Integer.valueOf(words[1]), Integer.valueOf(words[2]), words[3]));
+                        productList.add(product);
+                        updateOrdersBook(product);
                     } else {
-                        updateOrdersBook(new Product(Integer.valueOf(words[1]), Integer.valueOf(words[2]), words[3]));
+                        updateOrdersBook(product);
                     }
                 }
                 case "q" -> {
-
-                    switch (words[1]) {
-                        case "best_bid" -> writeOutputFile(getBestBid(), words[1]);
-                        case "best_ask" -> writeOutputFile(getBestAsk(), words[1]);
-                        case "size" -> writeOutputFile(getProductSize(Integer.valueOf(words[2])), words[1]);
+                    String secondWord = words[1];
+                    switch (secondWord) {
+                        case "best_bid" -> writeOutputFile(getBestBid(), secondWord);
+                        case "best_ask" -> writeOutputFile(getBestAsk(), secondWord);
+                        case "size" -> writeOutputFile(getProductSize(Integer.parseInt(words[2])), secondWord);
                     }
                 }
                 case "o" -> {
-                    if (words[1].equals("buy")) {
-                        removeOrder(words[1], Integer.valueOf(words[2]));
-                    }
-                    if (words[1].equals("sell")) {
-                        removeOrder(words[1], Integer.valueOf(words[2]));
+                    String secondWord = words[1];
+                    if (secondWord.equals("buy") || secondWord.equals("sell")) {
+                        removeOrder(secondWord, Integer.parseInt(words[2]));
                     }
                 }
             }
         }
+        writeAllOutput(writeList);
     }
 
     public void updateOrdersBook(Product product) {
         int count = 0;
-        for (Product i : productList) {
-            if (i.getPrice().equals(product.getPrice())) {
-                productList.get(productList.indexOf(i)).setSize(product.getSize());
-                productList.get(productList.indexOf(i)).setType(product.getType());
+        for (int i = 0; i < productList.size(); i++) {
+            if (productList.get(i).getPrice() == product.getPrice()) {
+                productList.get(i).setSize(product.getSize());
                 break;
             } else {
                 count++;
@@ -94,77 +103,92 @@ public class OrderBook {
     }
 
 
-    public ArrayList<String> readInputFile() throws IOException {
+    public ArrayList<String> readInputFile() {
         ArrayList<String> cl = new ArrayList<>();
         File input = new File(System.getProperty("user.dir") + File.separator + "input.txt");
         String line;
-        BufferedReader br = new BufferedReader(new FileReader(input));
-        while ((line = br.readLine()) != null) {
-            cl.add(line);
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(input));
+            while ((line = br.readLine()) != null) {
+                cl.add(line);
+            }
+            br.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
-        br.close();
         return cl;
     }
 
     public void writeOutputFile(Product product, String command) {
-        PrintWriter writer = new PrintWriter(outFile);
         if (product == null) {
-            writer.write("0" + "\n");
+            writeList.add("0" + "\n");
         } else if (command.equals("best_bid") | command.equals("best_ask")) {
-            writer.write(product.getPrice() + "," + product.getSize() + "\n");
+            writeList.add(product.getPrice() + "," + product.getSize() + "\n");
         } else if (command.equals("size")) {
-            writer.write(product.getSize().toString() + "\n");
+            writeList.add(product.getSize() + "\n");
         }
-        writer.flush();
     }
 
-    public void removeOrder(String input, Integer size) {
+    public void writeAllOutput(LinkedList<String> writeList) {
+        try {
+            BufferedWriter writer = new BufferedWriter(new FileWriter(System.getProperty("user.dir") + File.separator + "output.txt"));
+            for (int i = 0; i < writeList.size(); i++) {
+                writer.write(writeList.get(i));
+                writer.flush();
+            }
+            writer.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void removeOrder(String input, int size) {
         if (input.equals("sell")) {
-            Integer bigSize = size;
-            Product firstRem = getBestBid();
-            if ((firstRem.getSize() - size) < 0) {
-                while (bigSize > 0) {
-                    if (bigSize > getBestBid().getSize()) {
-                        bigSize = bigSize - getBestBid().getSize();
-                        removeBid("bid", 0);
-                    } else {
-                        removeBid("bid", getBestBid().getSize() - bigSize);
-                        bigSize = 0;
-                    }
-                }
-            } else {
-                removeBid("bid", firstRem.getSize() - size);
-            }
+            removeBid(size);
         } else if (input.equals("buy")) {
-            Integer bigSize = size;
-            Product firstRem = getBestAsk();
-            if ((firstRem.getSize() - size) < 0) {
-                while (bigSize > 0) {
-                    if (bigSize > getBestAsk().getSize()) {
-                        bigSize = bigSize - getBestAsk().getSize();
-                        removeAsk("ask", 0);
-                    } else {
-                        removeAsk("ask", getBestAsk().getSize() - bigSize);
-                        bigSize = 0;
-                    }
-                }
-            } else {
-                removeAsk("ask", firstRem.getSize() - size);
-            }
+            removeAsk(size);
         }
     }
 
-    public void removeBid(String type, Integer size) {
-        productList.stream()
-                .filter(product -> product.getType().equals(type))
-                .filter(product -> product.getSize() != 0)
-                .max(Comparator.comparingInt(Product::getPrice)).get().setSize(size);
+
+    public void removeBid(int size) {
+        bigSize = size;
+        product = getBestBid();
+        firstRem = product.getSize();
+        if ((firstRem - size) < 0) {
+            while (bigSize > 0) {
+                bigSize = getBigSize(bigSize, product);
+                product = getBestBid();
+            }
+        } else {
+            productList.get(productList.indexOf(product)).setSize(firstRem - size);
+        }
+
     }
 
-    public void removeAsk(String type, Integer size) {
-        productList.stream()
-                .filter(product -> product.getType().equals(type))
-                .filter(product -> product.getSize() != 0)
-                .min(Comparator.comparingInt(Product::getPrice)).get().setSize(size);
+    public int getBigSize(int bigSize, Product product) {
+        int indexOfProduct = productList.indexOf(product);
+        if (bigSize > product.getSize()) {
+            bigSize = bigSize - product.getSize();
+            productList.get(indexOfProduct).setSize(0);
+        } else {
+            productList.get(indexOfProduct).setSize(product.getSize() - bigSize);
+            bigSize = 0;
+        }
+        return bigSize;
+    }
+
+    public void removeAsk(int size) {
+        bigSize = size;
+        product = getBestAsk();
+        firstRem = product.getSize();
+        if ((firstRem - size) < 0) {
+            while (bigSize > 0) {
+                bigSize = getBigSize(bigSize, product);
+                product = getBestAsk();
+            }
+        } else {
+            productList.get(productList.indexOf(product)).setSize(firstRem - size);
+        }
     }
 }
