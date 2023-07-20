@@ -5,63 +5,80 @@ import java.util.*;
 
 public class OrderBook {
 
-    private static final ArrayList<Product> askList = new ArrayList<>();
-    private static final ArrayList<Product> bidList = new ArrayList<>();
+    private static final ArrayList<Product> productList = new ArrayList<>();
     private static final LinkedList<String> writeList = new LinkedList<>();
     private static Product product;
     private static int bigSize;
     private static int firstRem;
+    private static int bestAskPrice;
+    private static int bestBidPrice;
+    private static int bestAskSize;
+    private static int bestBidSize;
+    private static int spreadSize;
+    private static int indexOfBestAsk;
+    private static int indexOfBestBid;
 
     public static Product getBestAsk() {
-        int bestAsk = 0;
-        int minAsk = askList.get(0).getPrice();
-        int productListSize = askList.size();
+        indexOfBestAsk = -1;
+        bestAskPrice = productList.get(0).getPrice();
+        int productListSize = productList.size();
         for (int i = 0; i < productListSize; i++) {
-            product = askList.get(i);
-            if (product.getSize() != 0) {
-                if (product.getPrice() < minAsk) {
-                    bestAsk = i;
+            product = productList.get(i);
+            if (product.getType().equals("ask") && product.getSize() != 0) {
+                if (indexOfBestAsk == -1) {
+                    bestAskPrice = product.getPrice();
+                    bestAskSize = product.getSize();
+                    indexOfBestAsk = i;
+                }
+                if (product.getPrice() < bestAskPrice) {
+                    bestAskPrice = product.getPrice();
+                    bestAskSize = product.getSize();
+                    indexOfBestAsk = i;
                 }
             }
         }
-        return askList.get(bestAsk);
+        return productList.get(indexOfBestAsk);
     }
 
-
     public static Product getBestBid() {
-        int bestBid = 0;
-        int maxBid = bidList.get(0).getPrice();
-        int productListSize = bidList.size();
+        indexOfBestBid = -1;
+        bestBidPrice = productList.get(0).getPrice();
+        int productListSize = productList.size();
         for (int i = 0; i < productListSize; i++) {
-            product = bidList.get(i);
-            if (product.getSize() != 0) {
-                if (product.getPrice() > maxBid) {
-                    bestBid = i;
+            product = productList.get(i);
+            if (product.getType().equals("bid") && product.getSize() != 0) {
+                if (indexOfBestBid == -1) {
+                    bestBidPrice = product.getPrice();
+                    bestBidSize = product.getSize();
+                    indexOfBestBid = i;
+                }
+                if (product.getPrice() > productList.get(indexOfBestBid).getPrice()) {
+                    bestBidPrice = product.getPrice();
+                    bestBidSize = product.getSize();
+                    indexOfBestBid = i;
                 }
             }
         }
-        return bidList.get(bestBid);
+        return productList.get(indexOfBestBid);
     }
 
     public static Product getProductSize(int price) {
-        if (!askList.isEmpty()) {
-            for (int i = 0; i < askList.size(); i++) {
-                if (askList.get(i).getPrice() == price) {
-                    return askList.get(i);
-                }
+        int productListSize = productList.size();
+        boolean turn = false;
+        for (int i = 0; i < productListSize; i++) {
+            if (productList.get(i).getPrice() == price) {
+                spreadSize = productList.get(i).getSize();
+                turn = true;
+                return productList.get(i);
             }
         }
-        if (!bidList.isEmpty()) {
-            for (int i = 0; i < bidList.size(); i++) {
-                if (bidList.get(i).getPrice() == price) {
-                    return askList.get(i);
-                }
-            }
+        if (!turn) {
+            spreadSize = 0;
         }
         return null;
     }
 
-    public void commandExecution(ArrayList<String> cl) throws IOException {
+    public void commandExecution(List<String> cl) throws IOException {
         String[] words;
         int word1;
         int word2;
@@ -73,7 +90,11 @@ public class OrderBook {
                     word1 = Integer.parseInt(words[1]);
                     word2 = Integer.parseInt(words[2]);
                     product = new Product(word1, word2, words[3]);
-                    updateOrdersBooks();
+                    if (productList.isEmpty()) {
+                        productList.add(product);
+                    } else {
+                        updateOrdersBook(product);
+                    }
                 }
                 case "q" -> {
                     String secondWord = words[1];
@@ -94,58 +115,25 @@ public class OrderBook {
         writeAllOutput(writeList);
     }
 
-    public static void updateOrdersBooks() {
-        if (product.getType().equals("bid")) {
-            updateBidBook();
-        } else {
-            updateAskBook();
-        }
-    }
-
-    public static void updateBidBook() {
-        if (bidList.isEmpty()) {
-            bidList.add(product);
-        } else {
-            int count = 0;
-            int bidListSize = bidList.size();
-            for (int i = 0; i < bidListSize; i++) {
-                if (bidList.get(i).getPrice() == product.getPrice()) {
-                    bidList.get(i).setSize(product.getSize());
-                    break;
-                } else {
-                    count++;
-                }
-            }
-            if (count == bidListSize) {
-                bidList.add(product);
+    public static void updateOrdersBook(Product product) {
+        int count = 0;
+        int productListSize = productList.size();
+        for (int i = 0; i < productListSize; i++) {
+            if (productList.get(i).getPrice() == product.getPrice()) {
+                productList.get(i).setSize(product.getSize());
+                break;
+            } else {
+                count++;
             }
         }
-    }
-
-    public static void updateAskBook() {
-
-        if (askList.isEmpty()) {
-            askList.add(product);
-        } else {
-            int count = 0;
-            int askListSize = askList.size();
-            for (int i = 0; i < askListSize; i++) {
-                if (askList.get(i).getPrice() == product.getPrice()) {
-                    askList.get(i).setSize(product.getSize());
-                    break;
-                } else {
-                    count++;
-                }
-            }
-            if (count == askListSize) {
-                askList.add(product);
-            }
+        if (count == productListSize) {
+            productList.add(product);
         }
     }
 
 
-    public static ArrayList<String> readInputFile() {
-        ArrayList<String> cl = new ArrayList<>();
+    public static List<String> readInputFile() {
+        List<String> cl = new LinkedList<>();
         File input = new File(System.getProperty("user.dir") + File.separator + "input.txt");
         String line;
         try {
@@ -163,10 +151,12 @@ public class OrderBook {
     public static void writeOutputFile(Product product, String command) {
         if (product == null) {
             writeList.add("0" + "\n");
-        } else if (command.equals("best_bid") | command.equals("best_ask")) {
-            writeList.add(product.getPrice() + "," + product.getSize() + "\n");
+        } else if (command.equals("best_bid")) {
+            writeList.add(bestBidPrice + "," + bestBidSize + "\n");
+        } else if (command.equals("best_ask")) {
+            writeList.add(bestAskPrice + "," + bestAskSize + "\n");
         } else if (command.equals("size")) {
-            writeList.add(product.getSize() + "\n");
+            writeList.add(spreadSize + "\n");
         }
     }
 
@@ -202,39 +192,25 @@ public class OrderBook {
     public static void removeBid(int size) {
         bigSize = size;
         product = getBestBid();
-        firstRem = product.getSize();
+        firstRem = bestBidSize;
         if ((firstRem - size) < 0) {
             while (bigSize > 0) {
-                bigSize = getBigBidSize(bigSize);
+                bigSize = getBigSize(bigSize, product);
                 product = getBestBid();
             }
         } else {
-            bidList.get(bidList.indexOf(product)).setSize(firstRem - size);
+            productList.get(indexOfBestBid).setSize(firstRem - size);
         }
 
     }
 
-    public static int getBigBidSize(int bigSize) {
-        int indexOfProduct = bidList.indexOf(product);
-        int productGetSize = product.getSize();
-        if (bigSize > productGetSize) {
-            bigSize = bigSize - productGetSize;
-            bidList.get(indexOfProduct).setSize(0);
+    public static int getBigSize(int bigSize, Product product) {
+        int indexOfProduct = productList.indexOf(product);
+        if (bigSize > product.getSize()) {
+            bigSize = bigSize - product.getSize();
+            productList.get(indexOfProduct).setSize(0);
         } else {
-            bidList.get(indexOfProduct).setSize(productGetSize - bigSize);
-            bigSize = 0;
-        }
-        return bigSize;
-    }
-
-    public static int getBigAskSize(int bigSize) {
-        int indexOfProduct = askList.indexOf(product);
-        int productGetSize = product.getSize();
-        if (bigSize > productGetSize) {
-            bigSize = bigSize - productGetSize;
-            askList.get(indexOfProduct).setSize(0);
-        } else {
-            askList.get(indexOfProduct).setSize(productGetSize - bigSize);
+            productList.get(indexOfProduct).setSize(product.getSize() - bigSize);
             bigSize = 0;
         }
         return bigSize;
@@ -243,14 +219,14 @@ public class OrderBook {
     public static void removeAsk(int size) {
         bigSize = size;
         product = getBestAsk();
-        firstRem = product.getSize();
+        firstRem = bestAskSize;
         if ((firstRem - size) < 0) {
             while (bigSize > 0) {
-                bigSize = getBigAskSize(bigSize);
+                bigSize = getBigSize(bigSize, product);
                 product = getBestAsk();
             }
         } else {
-            askList.get(askList.indexOf(product)).setSize(firstRem - size);
+            productList.get(indexOfBestAsk).setSize(firstRem - size);
         }
     }
 }
