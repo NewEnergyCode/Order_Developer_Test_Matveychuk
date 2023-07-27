@@ -4,11 +4,11 @@ import java.io.Serializable;
 
 public class Product implements Serializable {
 
-    Integer price;
-    Integer size;
-    String type;
+    int price;
+    int size;
+    char type;
 
-    public Product(Integer price, Integer size, String type) {
+    public Product(int price, int size, char type) {
         this.price = price;
         this.size = size;
         this.type = type;
@@ -23,27 +23,27 @@ public class Product implements Serializable {
                 '}';
     }
 
-    public Integer getPrice() {
+    public int getPrice() {
         return price;
     }
 
-    public void setPrice(Integer price) {
+    public void setPrice(int price) {
         this.price = price;
     }
 
-    public Integer getSize() {
+    public int getSize() {
         return size;
     }
 
-    public void setSize(Integer size) {
+    public void setSize(int size) {
         this.size = size;
     }
 
-    public String getType() {
+    public char getType() {
         return type;
     }
 
-    public void setType(String type) {
+    public void setType(char type) {
         this.type = type;
     }
 }
