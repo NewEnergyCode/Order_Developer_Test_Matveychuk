@@ -5,8 +5,8 @@ import java.util.*;
 
 public class OrderBook {
 
-    private final TreeSet<Product> askList = new TreeSet<>(Comparator.comparingInt(Product::getPrice));
-    private final TreeSet<Product> bidList = new TreeSet<>(Comparator.comparingInt(Product::getPrice));
+    private final TreeMap<Integer, Integer> askList = new TreeMap<>();
+    private final TreeMap<Integer, Integer> bidList = new TreeMap<>();
 
 
     private final FileWriter writer;
@@ -23,7 +23,7 @@ public class OrderBook {
     public String getBestAsk() {
         if (!askList.isEmpty()) {
             StringBuilder result = new StringBuilder();
-            result.append(askList.first().getPrice()).append(",").append(askList.first().getSize());
+            result.append(askList.firstKey()).append(",").append(askList.firstEntry().getValue());
             return result.toString();
         }
         return "";
@@ -32,24 +32,20 @@ public class OrderBook {
     public String getBestBid() {
         if (!bidList.isEmpty()) {
             StringBuilder result = new StringBuilder();
-            result.append(bidList.last().getPrice()).append(",").append(bidList.last().getSize());
+            result.append(bidList.lastKey()).append(",").append(bidList.lastEntry().getValue());
             return result.toString();
         }
         return "";
     }
 
     public int getProductSize(int price) {
-        for (Product product : askList) {
-            if (product.getPrice() == price) {
-                return product.getSize();
-            }
+        if (askList.containsKey(price)) {
+            return askList.getOrDefault(price, 0);
+        } else if (bidList.containsKey(price)) {
+            return bidList.getOrDefault(price, 0);
+        } else {
+            return 0;
         }
-        for (Product product : bidList) {
-            if (product.getPrice() == price) {
-                return product.getSize();
-            }
-        }
-        return 0;
     }
 
 //    public void commandExecution(String cl) throws IOException {
@@ -146,15 +142,11 @@ public class OrderBook {
     }
 
 
-    public void checkingAndUpdate(TreeSet<Product> orderBook, Product product) {
-        for (Product p : orderBook) {
-            if (p.getPrice() == product.getPrice()) {
-                orderBook.remove(p);
-                return;
-            }
-        }
-        if (product.getSize() != 0) {
-            orderBook.add(product);
+    public void checkingAndUpdate(TreeMap<Integer, Integer> orderBook, Product product) {
+        if (product.getSize() == 0) {
+            orderBook.remove(product.getPrice());
+        } else {
+            orderBook.put(product.getPrice(), product.getSize());
         }
     }
 
@@ -197,12 +189,11 @@ public class OrderBook {
 
     public void removeBid(int size) {
         while (!bidList.isEmpty() && size > 0) {
-            Product bestBid = bidList.last();
-            if (bestBid.getSize() <= size) {
-                size -= bestBid.getSize();
-                bidList.remove(bestBid);
+            if (bidList.lastEntry().getValue() <= size) {
+                size -= bidList.lastEntry().getValue();
+                bidList.remove(bidList.lastKey());
             } else {
-                bestBid.setSize(bestBid.getSize() - size);
+                bidList.replace(bidList.lastKey(), bidList.lastEntry().getValue() - size);
                 size = 0;
             }
         }
@@ -210,12 +201,11 @@ public class OrderBook {
 
     public void removeAsk(int size) {
         while (!askList.isEmpty() && size > 0) {
-            Product bestAsk = askList.first();
-            if (bestAsk.getSize() <= size) {
-                size -= bestAsk.getSize();
-                askList.remove(bestAsk);
+            if (askList.firstEntry().getValue() <= size) {
+                size -= askList.firstEntry().getValue();
+                askList.remove(askList.firstKey());
             } else {
-                bestAsk.setSize(bestAsk.getSize() - size);
+                askList.replace(askList.firstKey(), askList.firstEntry().getValue() - size);
                 size = 0;
             }
         }
