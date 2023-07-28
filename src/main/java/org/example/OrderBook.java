@@ -1,13 +1,12 @@
 package org.example;
 
 import java.io.*;
-import java.util.*;
+import java.util.TreeMap;
 
 public class OrderBook {
 
     private final TreeMap<Integer, Integer> askList = new TreeMap<>();
     private final TreeMap<Integer, Integer> bidList = new TreeMap<>();
-
 
     private final FileWriter writer;
 
@@ -18,7 +17,6 @@ public class OrderBook {
             throw new RuntimeException(e);
         }
     }
-
 
     public String getBestAsk() {
         if (!askList.isEmpty()) {
@@ -47,75 +45,16 @@ public class OrderBook {
             return 0;
         }
     }
-
-//    public void commandExecution(String cl) throws IOException {
-//        StringTokenizer tokenizer = new StringTokenizer(cl, ",");
-//        String command = tokenizer.nextToken();
-//        String secondWord;
-//        switch (command) {
-//            case "u" -> {
-//                int word1 = Integer.parseInt(tokenizer.nextToken());
-//                int word2 = Integer.parseInt(tokenizer.nextToken());
-//                String type = tokenizer.nextToken();
-//                Product product = new Product(word1, word2, type);
-//                updateOrdersBooks(product);
-//            }
-//            case "q" -> {
-//                secondWord = tokenizer.nextToken();
-//                switch (secondWord) {
-//                    case "best_bid", "best_ask" -> writeAllOutput(writeOutputFile(secondWord));
-//                    case "size" -> writeAllOutput(writeOutputFile(tokenizer.nextToken()));
-//                }
-//            }
-//            case "o" -> {
-//                secondWord = tokenizer.nextToken();
-//                if (secondWord.equals("buy") || secondWord.equals("sell")) {
-//                    removeOrder(secondWord, Integer.parseInt(tokenizer.nextToken()));
-//                }
-//            }
-//        }
-//    }
-
-    //    public void commandExecution(String cl) throws IOException {
-//        int firstComma = cl.indexOf(",");
-//        int secondComma = cl.indexOf(",", firstComma + 1);
-//        String command = cl.substring(0, firstComma);
-//        switch (command) {
-//            case "u" -> {
-//                int thirdComma = cl.indexOf(",", secondComma + 1);
-//                int word1 = Integer.parseInt(cl.substring(firstComma + 1, secondComma));
-//                int word2 = Integer.parseInt(cl.substring(secondComma + 1, thirdComma));
-//                String type = cl.substring(thirdComma + 1);
-//                Product product = new Product(word1, word2, type);
-//                updateOrdersBooks(product);
-//            }
-//            case "q" -> {
-//                String secondWord = cl.substring(firstComma + 1);
-//                if (secondWord.equals("best_bid") || secondWord.equals("best_ask")) {
-//                    writeAllOutput(writeOutputFile(secondWord));
-//                } else {
-//                    String size = cl.substring(secondComma + 1);
-//                    writeAllOutput(writeOutputFile(size));
-//                }
-//            }
-//            case "o" -> {
-//                String secondWord = cl.substring(firstComma + 1, secondComma);
-//                String size = cl.substring(secondComma + 1);
-//                removeOrder(secondWord, Integer.parseInt(size));
-//            }
-//        }
-//    }
     public void commandExecution(String cl) throws IOException {
         int firstComma = cl.indexOf(",");
         int secondComma = cl.indexOf(",", firstComma + 1);
         char command = cl.charAt(0);
-
         if (command == 'u') {
             int thirdComma = cl.indexOf(",", secondComma + 1);
-            int word1 = Integer.parseInt(cl.substring(firstComma + 1, secondComma));
-            int word2 = Integer.parseInt(cl.substring(secondComma + 1, thirdComma));
+            int price = Integer.parseInt(cl.substring(firstComma + 1, secondComma));
+            int size = Integer.parseInt(cl.substring(secondComma + 1, thirdComma));
             char type = cl.charAt(thirdComma + 1);
-            Product product = new Product(word1, word2, type);
+            Product product = new Product(price, size, type);
             updateOrdersBooks(product);
         } else if (command == 'q') {
             char type = cl.charAt(7);
